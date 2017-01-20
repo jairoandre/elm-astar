@@ -6,6 +6,7 @@ import Color exposing (rgb)
 import AnimationFrame
 import Time exposing (Time)
 import Dict exposing (Dict)
+import Array exposing (Array)
 import Random
 
 
@@ -20,7 +21,7 @@ main =
 
 
 type alias Model =
-    { spots : List Spot
+    { spots : Array Spot
     , walls : Dict Int Bool
     , openSet : List Int
     , closedSet : List Int
@@ -44,12 +45,12 @@ type Msg
 
 cols : Int
 cols =
-    25
+    5
 
 
 rows : Int
 rows =
-    25
+    5
 
 
 sQtd : Int
@@ -117,7 +118,7 @@ neighbors idx =
 initModel : Model
 initModel =
     Model
-        (List.repeat (cols * rows) (Spot 0 0 0))
+        (Array.repeat (cols * rows) (Spot 0 0 0))
         Dict.empty
         [ 0 ]
         []
@@ -136,13 +137,36 @@ init =
     ( initModel, Cmd.batch <| List.map setWall indexRange )
 
 
+lowestF : Model -> Int -> Maybe Int -> Maybe Int
+lowestF model idx mIdx =
+    case mIdx of
+        Nothing ->
+            Just idx
+
+        Just cIdx ->
+            case (Array.get cIdx model.spots) of
+                Nothing ->
+                    Just idx
+
+                Just cSpot ->
+                    case (Array.get idx model.spots) of
+                        Nothing ->
+                            Just cIdx
+
+                        Just iSpot ->
+                            if iSpot.f < cSpot.f then
+                                Just idx
+                            else
+                                Just cIdx
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
         SetWall idx rndVal ->
             let
                 newWalls =
-                    Dict.insert idx (rndVal < 0.3) model.walls
+                    Dict.insert idx (rndVal < 0.0) model.walls
 
                 draw =
                     sQtd == (Dict.size newWalls)
@@ -153,20 +177,27 @@ update message model =
             if (List.member lastIdx model.closedSet) || (List.isEmpty model.openSet) then
                 ( { model | keepLooking = False }, Cmd.none )
             else
-              let
-                current =
-                  List.foldl (\p c ->)
+                let
+                    current =
+                        List.foldl (lowestF model) Nothing model.openSet
 
-                newClosed =
-                  current :: model.closedSet
+                    ( newOpenSet, newClosedSet ) =
+                        case current of
+                            Nothing ->
+                                ( model.openSet, model.closedSet )
 
-                newOpen =
-                  List.filter (\s -> s /= current) model.openSet
-
-
-
-              in
-                ( { model | time = newTime }, Cmd.none )
+                            Just c ->
+                                ( List.filter (\s -> s /= c) model.openSet
+                                , c :: model.closedSet
+                                )
+                in
+                    ( { model
+                        | time = newTime
+                        , openSet = newOpenSet
+                        , closedSet = newClosedSet
+                      }
+                    , Cmd.none
+                    )
 
 
 subscriptions : Model -> Sub Msg
@@ -195,6 +226,10 @@ drawSpot model idx spot =
                 Just v ->
                     if v then
                         rgb 0 0 0
+                    else if (List.member idx model.openSet) then
+                        rgb 0 255 0
+                    else if (List.member idx model.closedSet) then
+                        rgb 0 0 255
                     else
                         rgb 255 255 255
     in
@@ -208,7 +243,7 @@ drawSpot model idx spot =
 
 drawSpots : Model -> Form Msg
 drawSpots model =
-    List.indexedMap (drawSpot model) model.spots |> group
+    List.indexedMap (drawSpot model) (Array.toList model.spots) |> group
 
 
 view : Model -> Html Msg
