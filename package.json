@@ -1,0 +1,16 @@
+{
+  "name": "elm-astar",
+  "version": "1.0.0",
+  "description": "A* implementation in Elm.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "./node_modules/.bin/elm-package",
+    "reactor": "./node_modules/.bin/elm-reactor"
+  },
+  "author": "jairoandre",
+  "license": "MIT",
+  "dependencies": {
+    "elm": "^0.18.0"
+  }
+}
